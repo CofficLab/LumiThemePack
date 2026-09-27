@@ -9,6 +9,7 @@ import LumiThemePack
 
 LumiThemeRegistration.register(in: themeProvider)
 ThemeSettingsDetailView(theme: themeProvider)
+let chromeTheme = LumiPaletteChromeTheme(theme: selectedTheme, colorScheme: .dark)
 ```
 
 To remove the shared themes when a plugin shuts down:
