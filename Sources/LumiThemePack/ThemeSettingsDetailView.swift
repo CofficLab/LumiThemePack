@@ -15,10 +15,10 @@ private enum ThemeAppearanceFilter: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .all: "全部"
-        case .dark: "深色"
-        case .light: "浅色"
-        case .system: "跟随系统"
+        case .all: LumiThemePackLocalization.string("All")
+        case .dark: LumiThemePackLocalization.string("Dark")
+        case .light: LumiThemePackLocalization.string("Light")
+        case .system: LumiThemePackLocalization.string("Follow System")
         }
     }
 
@@ -118,7 +118,7 @@ public struct ThemeSettingsDetailView: View {
                     }
 
                     if filteredThemes.isEmpty {
-                        AppEmptyState(icon: "magnifyingglass", title: "没有找到主题")
+                        AppEmptyState(icon: "magnifyingglass", title: LumiThemePackLocalization.string("No Themes Found"))
                             .padding(.vertical, 32)
                     }
                 }
@@ -151,14 +151,14 @@ public struct ThemeSettingsDetailView: View {
 
     private var headerStats: some View {
         HStack(spacing: 10) {
-            Label("\(theme.themes.count) 个主题", systemImage: "paintpalette")
+            Label(String(format: LumiThemePackLocalization.string("%lld Themes"), Int64(theme.themes.count)), systemImage: "paintpalette")
             if let activeID = theme.selectedThemeId,
                let active = theme.themes.first(where: { $0.id == activeID }) {
-                Text("当前：\(active.displayName)")
+                Text(String(format: LumiThemePackLocalization.string("Current: %@"), active.displayName))
             }
             Spacer()
 #if DEBUG && canImport(AppKit)
-            AppButton(String(localized: "Open Data Directory", bundle: .module), systemImage: "folder", style: .warning, size: .small) {
+            AppButton(LumiThemePackLocalization.string("Open Data Directory"), systemImage: "folder", style: .warning, size: .small) {
                 openDataDirectory()
             }
 #endif
@@ -177,7 +177,7 @@ public struct ThemeSettingsDetailView: View {
                 LazyVStack(spacing: 4) {
                     ForEach(filteredThemes) { item in themeListRow(item) }
                     if filteredThemes.isEmpty {
-                        AppEmptyState(icon: "magnifyingglass", title: "没有找到主题")
+                        AppEmptyState(icon: "magnifyingglass", title: LumiThemePackLocalization.string("No Themes Found"))
                             .padding(.vertical, 32)
                     }
                 }
@@ -190,8 +190,8 @@ public struct ThemeSettingsDetailView: View {
 
     private var themeFilterControls: some View {
         VStack(spacing: 10) {
-            AppSearchBar(text: $searchText, placeholder: "搜索主题")
-            Picker("主题类型", selection: $appearanceFilter) {
+            AppSearchBar(text: $searchText, placeholder: LocalizedStringKey(LumiThemePackLocalization.string("Search Themes")))
+            Picker(LumiThemePackLocalization.string("Theme Type"), selection: $appearanceFilter) {
                 ForEach(ThemeAppearanceFilter.allCases) { filter in
                     Text(filter.title).tag(filter)
                 }
@@ -249,7 +249,7 @@ public struct ThemeSettingsDetailView: View {
                 onApply: { try? theme.selectTheme(id: selectedTheme.id) }
             )
         } else {
-            AppEmptyState(icon: "paintpalette", title: "选择一个主题")
+            AppEmptyState(icon: "paintpalette", title: LumiThemePackLocalization.string("Select a Theme"))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
@@ -354,38 +354,38 @@ private struct ThemePreviewPane: View {
     @ViewBuilder
     private var headerAction: some View {
         if isActive {
-            AppTag("当前使用", style: .accent)
+            AppTag(LumiThemePackLocalization.string("Currently Using"), style: .accent)
         } else {
-            AppButton("使用此主题", systemImage: "paintbrush.fill", style: .primary, size: .small, action: onApply)
+            AppButton(LumiThemePackLocalization.string("Use"), systemImage: "paintbrush.fill", style: .primary, size: .small, action: onApply)
         }
     }
 
     private var appearanceLabel: String {
         switch item.appearanceKind {
-        case .dark: "深色主题"
-        case .light: "浅色主题"
-        case .system: "跟随系统外观"
+        case .dark: LumiThemePackLocalization.string("Dark Theme")
+        case .light: LumiThemePackLocalization.string("Light Theme")
+        case .system: LumiThemePackLocalization.string("Follow System Appearance")
         }
     }
 
     private var preview: some View {
-        AppSettingsSection(title: "组件预览", subtitle: "查看常用组件在此主题下的效果", spacing: 12) {
+        AppSettingsSection(title: LumiThemePackLocalization.string("Typography & Actions"), subtitle: LumiThemePackLocalization.string("Theme Color & Elevation Preview"), spacing: 12) {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(String(localized: "Primary Text", bundle: .module)).font(.appBody).foregroundStyle(textPrimary)
-                    Text(String(localized: "Secondary Text", bundle: .module)).font(.appCaption).foregroundStyle(textSecondary)
-                    Text("主题颜色与层级预览").font(.appMicro).foregroundStyle(textSecondary.opacity(0.75))
+                    Text(LumiThemePackLocalization.string("Primary Text")).font(.appBody).foregroundStyle(textPrimary)
+                    Text(LumiThemePackLocalization.string("Secondary Text")).font(.appCaption).foregroundStyle(textSecondary)
+                    Text(LumiThemePackLocalization.string("Theme Color & Elevation Preview")).font(.appMicro).foregroundStyle(textSecondary.opacity(0.75))
                 }
                 HStack(spacing: 8) {
-                    previewButton("主要操作", fill: primary, foreground: .white)
-                    previewButton("次要操作", fill: elevated, foreground: textPrimary)
-                    previewButton("辅助操作", fill: secondary.opacity(0.18), foreground: secondary)
+                    previewButton(LumiThemePackLocalization.string("Primary Action"), fill: primary, foreground: .white)
+                    previewButton(LumiThemePackLocalization.string("Secondary Action"), fill: elevated, foreground: textPrimary)
+                    previewButton(LumiThemePackLocalization.string("Tertiary Action"), fill: secondary.opacity(0.18), foreground: secondary)
                 }
                 HStack(spacing: 10) {
-                    colorSwatch("主色", primary)
-                    colorSwatch("辅色", secondary)
-                    colorSwatch("背景", background)
-                    colorSwatch("抬升", elevated)
+                    colorSwatch(LumiThemePackLocalization.string("Primary Color"), primary)
+                    colorSwatch(LumiThemePackLocalization.string("Secondary Color"), secondary)
+                    colorSwatch(LumiThemePackLocalization.string("Background"), background)
+                    colorSwatch(LumiThemePackLocalization.string("Elevated"), elevated)
                 }
             }
             .padding(16)
