@@ -20,6 +20,14 @@ let package = Package(
                 .product(name: "ProviderTheme", package: "LumiProviders")
             ],
             resources: [.process("Resources")]
+        ),
+        .testTarget(
+            name: "LumiThemePackTests",
+            dependencies: [
+                "LumiThemePack",
+                .product(name: "ProviderTheme", package: "LumiProviders")
+            ],
+            path: "Tests/LumiThemePackTests"
         )
     ]
 )
