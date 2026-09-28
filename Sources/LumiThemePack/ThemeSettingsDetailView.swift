@@ -180,15 +180,17 @@ public struct ThemeSettingsDetailView: View {
     private var themeFilterControls: some View {
         VStack(spacing: 10) {
             AppSearchBar(text: $searchText, placeholder: LocalizedStringKey(LumiThemePackLocalization.string("Search Themes")))
-            Picker(LumiThemePackLocalization.string("Theme Type"), selection: $appearanceFilter) {
-                ForEach(ThemeAppearanceFilter.allCases) { filter in
-                    Text(filter.title).tag(filter)
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
+            AppSegmentedControl(
+                ThemeAppearanceFilter.allCases.map(\.title),
+                selection: Binding(
+                    get: { ThemeAppearanceFilter.allCases.firstIndex(of: appearanceFilter) ?? 0 },
+                    set: { appearanceFilter = ThemeAppearanceFilter.allCases[$0] }
+                ),
+                maxWidth: .infinity
+            )
         }
-        .padding(12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 12)
     }
 
     private func themeListRow(_ item: AppThemeValue) -> some View {
