@@ -1,6 +1,3 @@
-#if canImport(AppKit)
-import AppKit
-#endif
 import LumiUI
 import ProviderTheme
 import SwiftUI
@@ -45,12 +42,8 @@ public struct ThemeSettingsDetailView: View {
     @State private var searchText = ""
     @State private var appearanceFilter: ThemeAppearanceFilter = .all
 
-    /// 数据根目录提供者；用于「打开数据目录」按钮，未注入时不展示该按钮。
-    private let dataRootDirectory: URL?
-
-    public init(theme: any ThemeProviding, dataRootDirectory: URL? = nil) {
+    public init(theme: any ThemeProviding) {
         self.theme = theme
-        self.dataRootDirectory = dataRootDirectory
         _themeObservation = StateObject(wrappedValue: ThemeSettingsObservationModel(theme: theme))
     }
 
@@ -103,6 +96,7 @@ public struct ThemeSettingsDetailView: View {
                             ThemePreviewPane(
                                 item: item,
                                 isActive: theme.selectedThemeId == item.id,
+                                containerBackground: uiTheme.surface,
                                 onApply: { try? theme.selectTheme(id: item.id) }
                             )
                             .navigationTitle(item.displayName)
@@ -157,11 +151,6 @@ public struct ThemeSettingsDetailView: View {
                 Text(String(format: LumiThemePackLocalization.string("Current: %@"), active.displayName))
             }
             Spacer()
-#if DEBUG && canImport(AppKit)
-            AppButton(LumiThemePackLocalization.string("Open Data Directory"), systemImage: "folder", style: .warning, size: .small) {
-                openDataDirectory()
-            }
-#endif
         }
         .font(.appCaption)
         .foregroundStyle(uiTheme.textSecondary)
@@ -246,6 +235,7 @@ public struct ThemeSettingsDetailView: View {
             ThemePreviewPane(
                 item: selectedTheme,
                 isActive: theme.selectedThemeId == selectedTheme.id,
+                containerBackground: uiTheme.surface,
                 onApply: { try? theme.selectTheme(id: selectedTheme.id) }
             )
         } else {
@@ -254,15 +244,6 @@ public struct ThemeSettingsDetailView: View {
         }
     }
 
-    // MARK: - Debug Helpers
-
-    #if DEBUG && canImport(AppKit)
-    /// 打开当前 App 的数据根目录（由 Storage 层决定，含版本隔离目录）。
-    private func openDataDirectory() {
-        guard let dataRootDirectory else { return }
-        NSWorkspace.shared.open(dataRootDirectory)
-    }
-    #endif
 }
 
 @MainActor
@@ -281,6 +262,8 @@ private final class ThemeSettingsObservationModel: ObservableObject {
 private struct ThemePreviewPane: View {
     let item: AppThemeValue
     let isActive: Bool
+    /// 预览容器沿用当前生效主题，浏览待应用主题时不改变设置页背景。
+    let containerBackground: Color
     let onApply: () -> Void
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -294,17 +277,25 @@ private struct ThemePreviewPane: View {
     private var textSecondary: Color { palette.textSecondary.color() }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                header
-                AppDivider()
-                preview
+        Group {
+            if horizontalSizeClass == .compact {
+                ScrollView { content.padding(22) }
+            } else {
+                content
+                    .padding(22)
             }
-            .padding(22)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(background)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(containerBackground)
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            header
+            AppDivider()
+            preview
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     @ViewBuilder
@@ -368,30 +359,202 @@ private struct ThemePreviewPane: View {
         }
     }
 
+    @ViewBuilder
     private var preview: some View {
-        AppSettingsSection(title: LumiThemePackLocalization.string("Typography & Actions"), subtitle: LumiThemePackLocalization.string("Theme Color & Elevation Preview"), spacing: 12) {
-            VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(LumiThemePackLocalization.string("Primary Text")).font(.appBody).foregroundStyle(textPrimary)
-                    Text(LumiThemePackLocalization.string("Secondary Text")).font(.appCaption).foregroundStyle(textSecondary)
-                    Text(LumiThemePackLocalization.string("Theme Color & Elevation Preview")).font(.appMicro).foregroundStyle(textSecondary.opacity(0.75))
-                }
-                HStack(spacing: 8) {
-                    previewButton(LumiThemePackLocalization.string("Primary Action"), fill: primary, foreground: .white)
-                    previewButton(LumiThemePackLocalization.string("Secondary Action"), fill: elevated, foreground: textPrimary)
-                    previewButton(LumiThemePackLocalization.string("Tertiary Action"), fill: secondary.opacity(0.18), foreground: secondary)
-                }
-                HStack(spacing: 10) {
-                    colorSwatch(LumiThemePackLocalization.string("Primary Color"), primary)
-                    colorSwatch(LumiThemePackLocalization.string("Secondary Color"), secondary)
-                    colorSwatch(LumiThemePackLocalization.string("Background"), background)
-                    colorSwatch(LumiThemePackLocalization.string("Elevated"), elevated)
-                }
+        if horizontalSizeClass == .compact {
+            VStack(spacing: 14) {
+                typographyCard
+                colorsCard
+                controlsCard
+                listStatusCard
             }
-            .padding(16)
+        } else {
+            GeometryReader { proxy in
+                let cardHeight = max(154, (proxy.size.height - 48 - 14) / 2)
+
+                LazyVGrid(
+                    columns: [
+                        GridItem(.flexible(), spacing: 14),
+                        GridItem(.flexible(), spacing: 14),
+                    ],
+                    spacing: 14
+                ) {
+                    typographyCard.frame(height: cardHeight)
+                    colorsCard.frame(height: cardHeight)
+                    controlsCard.frame(height: cardHeight)
+                    listStatusCard.frame(height: cardHeight)
+                }
+                .padding(24)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(elevated.opacity(0.45))
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
+    }
+
+    private var typographyCard: some View {
+        previewCard(title: LumiThemePackLocalization.string("Typography & Actions"), systemImage: "textformat") {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(LumiThemePackLocalization.string("Primary Text"))
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(textPrimary)
+                Text(LumiThemePackLocalization.string("Secondary Text"))
+                    .font(.appBody)
+                    .foregroundStyle(textSecondary)
+                Text(LumiThemePackLocalization.string("Theme Color & Elevation Preview"))
+                    .font(.appMicro)
+                    .foregroundStyle(textSecondary.opacity(0.75))
+                HStack(spacing: 8) {
+                    previewButton(LumiThemePackLocalization.string("Primary Action"), fill: primary, foreground: .white)
+                    previewButton(LumiThemePackLocalization.string("Secondary Action"), fill: elevated, foreground: textPrimary)
+                }
+                previewButton(LumiThemePackLocalization.string("Tertiary Action"), fill: secondary.opacity(0.18), foreground: secondary)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+    }
+
+    private var colorsCard: some View {
+        previewCard(title: LumiThemePackLocalization.string("Accent"), systemImage: "paintpalette") {
+            LazyVGrid(
+                columns: [GridItem(.flexible()), GridItem(.flexible())],
+                alignment: .leading,
+                spacing: 10
+            ) {
+                colorSwatch(LumiThemePackLocalization.string("Primary Color"), primary)
+                colorSwatch(LumiThemePackLocalization.string("Secondary Color"), secondary)
+                colorSwatch(LumiThemePackLocalization.string("Background"), background)
+                colorSwatch(LumiThemePackLocalization.string("Elevated"), elevated)
+            }
+            HStack(spacing: 8) {
+                Text(LumiThemePackLocalization.string("Surface Depth"))
+                    .font(.appMicro)
+                    .foregroundStyle(textSecondary)
+                ProgressView(value: 0.68)
+                    .tint(primary)
+                Text(verbatim: "68%")
+                    .font(.appMicroEmphasized)
+                    .foregroundStyle(textPrimary)
+            }
+        }
+    }
+
+    private var controlsCard: some View {
+        previewCard(title: LumiThemePackLocalization.string("Controls"), systemImage: "slider.horizontal.3") {
+            VStack(alignment: .leading, spacing: 12) {
+                Toggle(LumiThemePackLocalization.string("System Sync"), isOn: .constant(true))
+                    .font(.appCaption)
+                    .foregroundStyle(textPrimary)
+                    .tint(primary)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(LumiThemePackLocalization.string("Display Density"))
+                        Spacer()
+                        Text(LumiThemePackLocalization.string("Comfortable"))
+                    }
+                    .font(.appMicro)
+                    .foregroundStyle(textSecondary)
+                    Slider(value: .constant(0.68))
+                        .tint(primary)
+                }
+
+                Picker(LumiThemePackLocalization.string("Appearance"), selection: .constant(1)) {
+                    Text(LumiThemePackLocalization.string("Compact")).tag(0)
+                    Text(LumiThemePackLocalization.string("Comfortable")).tag(1)
+                    Text(LumiThemePackLocalization.string("Spacious")).tag(2)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .tint(primary)
+            }
+        }
+    }
+
+    private var listStatusCard: some View {
+        previewCard(title: LumiThemePackLocalization.string("Lists & Status"), systemImage: "list.bullet.rectangle") {
+            VStack(spacing: 8) {
+                previewListRow(
+                    title: "main",
+                    detail: LumiThemePackLocalization.string("Workspace"),
+                    systemImage: "arrow.triangle.branch",
+                    isSelected: true
+                )
+                previewListRow(
+                    title: "feature/preview",
+                    detail: LumiThemePackLocalization.string("3 Changes"),
+                    systemImage: "arrow.triangle.branch",
+                    isSelected: false
+                )
+                HStack(spacing: 8) {
+                    previewBadge(LumiThemePackLocalization.string("Ready"), color: primary)
+                    previewBadge(LumiThemePackLocalization.string("3 Changes"), color: secondary)
+                    Spacer(minLength: 0)
+                }
+            }
+        }
+    }
+
+    private func previewCard<Content: View>(
+        title: String,
+        systemImage: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 7) {
+                Image(systemName: systemImage)
+                    .font(.appCaptionEmphasized)
+                    .foregroundStyle(primary)
+                Text(title)
+                    .font(.appCaptionEmphasized)
+                    .foregroundStyle(textPrimary)
+            }
+            content()
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .background(background.opacity(0.72))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(textSecondary.opacity(0.14), lineWidth: 1)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    private func previewListRow(title: String, detail: String, systemImage: String, isSelected: Bool) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: systemImage)
+                .font(.appMicroEmphasized)
+                .foregroundStyle(isSelected ? primary : textSecondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.appMicroEmphasized)
+                    .foregroundStyle(textPrimary)
+                Text(detail)
+                    .font(.appMicro)
+                    .foregroundStyle(textSecondary)
+            }
+            Spacer(minLength: 0)
+            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                .font(.appMicro)
+                .foregroundStyle(isSelected ? primary : textSecondary.opacity(0.6))
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 7)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(isSelected ? primary.opacity(0.12) : elevated.opacity(0.55))
+        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+    }
+
+    private func previewBadge(_ title: String, color: Color) -> some View {
+        Text(title)
+            .font(.appMicroEmphasized)
+            .foregroundStyle(color)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(color.opacity(0.14))
+            .clipShape(Capsule())
     }
 
     private func previewButton(_ title: String, fill: Color, foreground: Color) -> some View {
