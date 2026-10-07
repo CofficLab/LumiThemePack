@@ -372,11 +372,11 @@ private struct ThemePreviewPane: View {
             }
         } else {
             GeometryReader { proxy in
-                let cardHeight = max(154, (proxy.size.height - 48 - 14) / 2)
+                // 一行一个块：4 张卡片纵向排列，等高均分可用高度。
+                let cardHeight = max(154, (proxy.size.height - 48 - 42) / 4)
 
                 LazyVGrid(
                     columns: [
-                        GridItem(.flexible(), spacing: 14),
                         GridItem(.flexible(), spacing: 14),
                     ],
                     spacing: 14
