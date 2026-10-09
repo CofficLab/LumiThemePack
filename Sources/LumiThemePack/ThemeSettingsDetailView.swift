@@ -279,25 +279,21 @@ private struct ThemePreviewPane: View {
     private var textSecondary: Color { palette.textSecondary.color() }
 
     var body: some View {
-        Group {
-            if horizontalSizeClass == .compact {
-                ScrollView { content.padding(22) }
-            } else {
-                content
+        VStack(alignment: .leading, spacing: 0) {
+            header
+                .padding(.horizontal, 22)
+                .padding(.top, 22)
+                .padding(.bottom, 12)
+            AppDivider()
+            ScrollView {
+                preview
                     .padding(22)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(containerBackground)
-    }
-
-    private var content: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            header
-            AppDivider()
-            preview
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .accessibilityIdentifier("wakey.theme.preview-pane")
     }
 
     @ViewBuilder
@@ -371,24 +367,17 @@ private struct ThemePreviewPane: View {
                 listStatusCard
             }
         } else {
-            GeometryReader { proxy in
-                // 一行一个块：4 张卡片纵向排列，等高均分可用高度。
-                let cardHeight = max(154, (proxy.size.height - 48 - 42) / 4)
-
-                LazyVGrid(
-                    columns: [
-                        GridItem(.flexible(), spacing: 14),
-                    ],
-                    spacing: 14
-                ) {
-                    typographyCard.frame(height: cardHeight)
-                    colorsCard.frame(height: cardHeight)
-                    controlsCard.frame(height: cardHeight)
-                    listStatusCard.frame(height: cardHeight)
-                }
-                .padding(24)
+            LazyVGrid(
+                columns: [GridItem(.flexible())],
+                spacing: 14
+            ) {
+                typographyCard.frame(height: 200)
+                colorsCard.frame(height: 200)
+                controlsCard.frame(height: 200)
+                listStatusCard.frame(height: 200)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(24)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
             .background(elevated.opacity(0.45))
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
@@ -409,9 +398,8 @@ private struct ThemePreviewPane: View {
                 HStack(spacing: 8) {
                     previewButton(LumiThemePackLocalization.string("Primary Action"), fill: primary, foreground: .white)
                     previewButton(LumiThemePackLocalization.string("Secondary Action"), fill: elevated, foreground: textPrimary)
+                    previewButton(LumiThemePackLocalization.string("Tertiary Action"), fill: secondary.opacity(0.18), foreground: secondary)
                 }
-                previewButton(LumiThemePackLocalization.string("Tertiary Action"), fill: secondary.opacity(0.18), foreground: secondary)
-                    .frame(maxWidth: .infinity)
             }
         }
     }
@@ -419,8 +407,7 @@ private struct ThemePreviewPane: View {
     private var colorsCard: some View {
         previewCard(title: LumiThemePackLocalization.string("Accent"), systemImage: "paintpalette") {
             LazyVGrid(
-                columns: [GridItem(.flexible()), GridItem(.flexible())],
-                alignment: .leading,
+                columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())],
                 spacing: 10
             ) {
                 colorSwatch(LumiThemePackLocalization.string("Primary Color"), primary)
