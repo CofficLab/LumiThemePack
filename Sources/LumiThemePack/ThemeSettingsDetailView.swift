@@ -41,6 +41,7 @@ public struct ThemeSettingsDetailView: View {
     @State private var selectedID: String?
     @State private var searchText = ""
     @State private var appearanceFilter: ThemeAppearanceFilter = .all
+    @State private var isPreviewPresented = false
 
     public init(theme: any ThemeProviding) {
         self.theme = theme
@@ -67,11 +68,15 @@ public struct ThemeSettingsDetailView: View {
 
     public var body: some View {
         Group {
+            #if os(iOS)
+            iosBody
+            #else
             if horizontalSizeClass == .compact {
                 compactBody
             } else {
                 regularBody
             }
+            #endif
         }
         .onAppear { selectedID = theme.selectedThemeId ?? selectedTheme?.id }
         .onReceive(themeObservation.$revision) { _ in selectedID = theme.selectedThemeId }
@@ -82,6 +87,88 @@ public struct ThemeSettingsDetailView: View {
             }
         }
     }
+
+    // MARK: - iOS
+
+#if os(iOS)
+    /// iOS 外观页：可搜索的主题列表，点击即应用并打勾。
+    ///
+    /// 桌面端的双栏「列表 + 预览面板」在 iPhone 上退化成卡片拼贴，
+    /// 因此 iOS 改为「列表 + 对勾 + 预览弹层」的原生表达：
+    /// 筛选降级为导航栏菜单，预览收敛为可关闭的 sheet。
+    @ViewBuilder
+    private var iosBody: some View {
+        AppSettingsContentScaffold(maxContentWidth: nil) {
+            VStack(alignment: .leading, spacing: 16) {
+                AppSearchBar(
+                    text: $searchText,
+                    placeholder: LocalizedStringKey(LumiThemePackLocalization.string("Search Themes"))
+                )
+
+                AppSettingSection(
+                    title: String(
+                        format: LumiThemePackLocalization.string("%lld Themes"),
+                        Int64(theme.themes.count)
+                    )
+                ) {
+                    ForEach(filteredThemes) { item in
+                        AppSettingCheckmarkRow(
+                            item.displayName,
+                            description: item.description,
+                            isSelected: theme.selectedThemeId == item.id,
+                            leadingColor: item.palette.accentPrimary.color(),
+                            action: { try? theme.selectTheme(id: item.id) }
+                        )
+                    }
+
+                    if filteredThemes.isEmpty {
+                        AppEmptyState(
+                            icon: "magnifyingglass",
+                            title: LumiThemePackLocalization.string("No Themes Found")
+                        )
+                        .padding(.vertical, 16)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    ForEach(ThemeAppearanceFilter.allCases) { filter in
+                        Button {
+                            appearanceFilter = filter
+                        } label: {
+                            if filter == appearanceFilter {
+                                Label(filter.title, systemImage: "checkmark")
+                            } else {
+                                Text(filter.title)
+                            }
+                        }
+                    }
+                } label: {
+                    Image(systemName: "line.3.horizontal.decrease.circle")
+                }
+                .accessibilityLabel(LumiThemePackLocalization.string("Filter"))
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    isPreviewPresented = true
+                } label: {
+                    Image(systemName: "eye")
+                }
+                .accessibilityLabel(LumiThemePackLocalization.string("Preview"))
+                .disabled(selectedTheme == nil)
+            }
+        }
+        .sheet(isPresented: $isPreviewPresented) {
+            if let selectedTheme {
+                IOSThemePreviewSheet(theme: selectedTheme)
+            }
+        }
+    }
+#endif
 
     private var compactBody: some View {
         AppSettingsContentScaffold(maxContentWidth: nil) {
@@ -567,3 +654,126 @@ private struct ThemePreviewPane: View {
         }
     }
 }
+
+#if os(iOS)
+/// iOS 主题预览弹层。
+///
+/// 桌面端的主题预览是一整块「控件拼贴」面板，直接搬到 iPhone 上既拥挤又不像设置界面。
+/// 这里收敛为一页可滚动的原生分组：主题标识、配色样本、控件样例。
+private struct IOSThemePreviewSheet: View {
+    let theme: AppThemeValue
+
+    @Environment(\.dismiss) private var dismiss
+
+    private var palette: LumiThemePalette { theme.palette }
+
+    private var primary: Color { palette.accentPrimary.color() }
+    private var secondary: Color { palette.accentSecondary.color() }
+    private var background: Color { palette.backgroundMedium.color() }
+    private var elevated: Color { palette.backgroundLight.color() }
+    private var textPrimary: Color { palette.textPrimary.color() }
+    private var textSecondary: Color { palette.textSecondary.color() }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    header
+                    AppSettingSection(title: LumiThemePackLocalization.string("Accent")) {
+                        swatchRow
+                    }
+                    AppSettingSection(title: LumiThemePackLocalization.string("Controls")) {
+                        controlSamples
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+            }
+            .background(Color.lumiGroupedBackground)
+            .navigationTitle(theme.displayName)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(LumiThemePackLocalization.string("Done")) {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+
+    private var header: some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: theme.iconName)
+                .font(.system(size: 30, weight: .semibold))
+                .foregroundStyle(theme.resolvedIconColor)
+                .frame(width: 56, height: 56)
+                .background(primary.opacity(0.16))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(theme.displayName)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(textPrimary)
+                Text(theme.description)
+                    .font(.footnote)
+                    .foregroundStyle(textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var swatchRow: some View {
+        HStack(spacing: 10) {
+            swatch(primary)
+            swatch(secondary)
+            swatch(background)
+            swatch(elevated)
+            swatch(textPrimary)
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func swatch(_ color: Color) -> some View {
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(color)
+            .frame(height: 40)
+            .overlay {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+            }
+    }
+
+    private var controlSamples: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(LumiThemePackLocalization.string("Primary Text"))
+                .font(.body)
+                .foregroundStyle(textPrimary)
+
+            Text(LumiThemePackLocalization.string("Secondary Text"))
+                .font(.footnote)
+                .foregroundStyle(textSecondary)
+
+            HStack(spacing: 10) {
+                Text(LumiThemePackLocalization.string("Primary Action"))
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(primary)
+                    .clipShape(Capsule())
+
+                Text(LumiThemePackLocalization.string("Secondary Action"))
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(textPrimary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(elevated)
+                    .clipShape(Capsule())
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+#endif

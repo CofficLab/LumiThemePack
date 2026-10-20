@@ -9,7 +9,9 @@ let package = Package(
         .library(name: "LumiThemePack", targets: ["LumiThemePack"])
     ],
     dependencies: [
-        .package(url: "https://github.com/CofficLab/LumiUI.git", from: "1.7.0"),
+        // iOS 外观页用到 LumiUI 1.11.0 新增的设置组件（AppSettingCheckmarkRow
+        // 等）与语义色，低于该版本无法编译。
+        .package(url: "https://github.com/CofficLab/LumiUI.git", from: "1.11.0"),
         .package(url: "https://github.com/CofficLab/LumiProviders.git", from: "1.0.2")
     ],
     targets: [
