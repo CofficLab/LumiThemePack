@@ -5,30 +5,6 @@ import SwiftUI
 private typealias AppThemeValue = ProviderTheme.LumiTheme
 private typealias AppThemeAppearanceKind = ProviderTheme.ThemeAppearanceKind
 
-private enum ThemeAppearanceFilter: String, CaseIterable, Identifiable {
-    case all, dark, light, system
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .all: LumiThemePackLocalization.string("All")
-        case .dark: LumiThemePackLocalization.string("Dark")
-        case .light: LumiThemePackLocalization.string("Light")
-        case .system: LumiThemePackLocalization.string("Follow System")
-        }
-    }
-
-    func matches(_ kind: AppThemeAppearanceKind) -> Bool {
-        switch self {
-        case .all: true
-        case .dark: kind == .dark
-        case .light: kind == .light
-        case .system: kind == .system
-        }
-    }
-}
-
 /// 外观设置详情：使用新版 ProviderTheme，恢复旧版的搜索、筛选、双栏浏览、
 /// 主题预览与显式应用状态。
 @MainActor
@@ -49,14 +25,7 @@ public struct ThemeSettingsDetailView: View {
     }
 
     private var filteredThemes: [AppThemeValue] {
-        let keyword = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        return theme.themes.filter { item in
-            appearanceFilter.matches(item.appearanceKind)
-                && (keyword.isEmpty
-                    || item.displayName.localizedCaseInsensitiveContains(keyword)
-                    || item.description.localizedCaseInsensitiveContains(keyword)
-                    || item.id.localizedCaseInsensitiveContains(keyword))
-        }
+        ThemeFilter.filter(themes: theme.themes, searchText: searchText, filter: appearanceFilter)
     }
 
     private var selectedTheme: AppThemeValue? {
