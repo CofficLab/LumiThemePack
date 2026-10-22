@@ -166,4 +166,120 @@ struct LumiThemeRegistrationTests {
         #expect(provider.themes.count == LumiThemeContract.selectableThemeCount)
         #expect(Set(provider.themes.map(\.id)) == Set(LumiThemeContract.selectableThemeIDs))
     }
+
+    // MARK: - 子集注册（themeIDs 白名单）
+
+    /// 构造使用临时目录的 Provider，避免测试写本机 Application Support。
+    private static func makeProvider() -> DefaultThemeProviding {
+        DefaultThemeProviding(storageDirectory: FileManager.default.temporaryDirectory)
+    }
+
+    @Test("nil 白名单返回全量目录")
+    func nilWhitelistReturnsFullCatalog() {
+        let themes = LumiThemeRegistration.themes(for: nil)
+
+        #expect(themes.count == LumiThemeContract.catalogThemeCount)
+        #expect(themes.map(\.id) == LumiThemeCatalog.all.map(\.id))
+    }
+
+    @Test("子集只返回白名单命中的主题，且保持目录顺序")
+    func subsetKeepsCatalogOrder() {
+        let themes = LumiThemeRegistration.themes(for: ["dracula", "lumi", "midnight"])
+
+        #expect(themes.map(\.id) == ["lumi", "midnight", "dracula"],
+                "应按目录顺序返回，而非白名单书写顺序")
+    }
+
+    @Test("白名单外的 id 被忽略，不影响其余主题")
+    func subsetIgnoresUnknownIDs() {
+        let themes = LumiThemeRegistration.themes(for: ["lumi", "not-a-real-theme"])
+
+        #expect(themes.map(\.id) == ["lumi"])
+    }
+
+    @Test("空白名单返回空集合")
+    func emptyWhitelistReturnsEmpty() {
+        #expect(LumiThemeRegistration.themes(for: []).isEmpty)
+    }
+
+    @Test("白名单重复 id 不产生重复主题")
+    func duplicateIDsInWhitelistAreDeduplicated() {
+        let themes = LumiThemeRegistration.themes(for: ["lumi", "lumi", "dracula"])
+
+        #expect(themes.map(\.id) == ["lumi", "dracula"])
+    }
+
+    @Test("unknownIDs 报告白名单中不存在于目录的 id 并去重")
+    func unknownIDsReportsTypos() {
+        let unknown = LumiThemeRegistration.unknownIDs(in: ["lumi", "typo-a", "typo-b", "typo-a"])
+
+        #expect(unknown == ["typo-a", "typo-b"])
+        #expect(LumiThemeRegistration.unknownIDs(in: nil).isEmpty)
+        #expect(LumiThemeRegistration.unknownIDs(in: ["lumi", "dracula"]).isEmpty)
+    }
+
+    @Test("按子集注册后，Provider 中只新增白名单主题")
+    func registerSubsetOnlyAddsWhitelistedThemes() {
+        let provider = Self.makeProvider()
+        let builtinCount = provider.themes.count
+
+        LumiThemeRegistration.register(in: provider, themeIDs: ["lumi", "dracula"])
+
+        // 内置 `lumi` 被目录同 id 主题覆盖，故白名单只体现为 id 集合而非新增两条。
+        let additionalBuiltin = Set(LumiThemeContract.additionalBuiltinThemeIDs)
+        #expect(Set(provider.themes.map(\.id)) == additionalBuiltin.union(["lumi", "dracula"]))
+        #expect(provider.themes.count == builtinCount + 1,
+                "仅 `dracula` 是净新增，`lumi` 覆盖了内置同 id 条目")
+        #expect(!provider.themes.contains { $0.id == "midnight" },
+                "未列入白名单的目录主题不应注册")
+    }
+
+    @Test("按子集注销是对称的，只撤回白名单主题")
+    func unregisterSubsetIsSymmetric() {
+        let provider = Self.makeProvider()
+        LumiThemeRegistration.register(in: provider, themeIDs: ["lumi", "dracula"])
+
+        LumiThemeRegistration.unregister(from: provider, themeIDs: ["lumi", "dracula"])
+
+        #expect(Set(provider.themes.map(\.id)) == Set(LumiThemeContract.additionalBuiltinThemeIDs))
+    }
+
+    @Test("注销子集不影响已注册的其他目录主题")
+    func unregisterSubsetLeavesOtherThemes() {
+        let provider = Self.makeProvider()
+        LumiThemeRegistration.register(in: provider)
+        let baseline = provider.themes
+
+        LumiThemeRegistration.unregister(from: provider, themeIDs: ["dracula"])
+
+        #expect(provider.themes != baseline)
+        #expect(!provider.themes.contains { $0.id == "dracula" })
+        #expect(provider.themes.contains { $0.id == "midnight" },
+                "不在注销白名单中的主题应保留")
+    }
+
+    @Test("先全量注册再子集注册不产生重复条目")
+    func registerSubsetAfterFullRegisterIsIdempotent() {
+        let provider = Self.makeProvider()
+        LumiThemeRegistration.register(in: provider)
+        let fullCount = provider.themes.count
+
+        LumiThemeRegistration.register(in: provider, themeIDs: ["lumi", "dracula"])
+
+        #expect(provider.themes.count == fullCount)
+        #expect(Set(provider.themes.map(\.id)).count == fullCount)
+    }
+
+    @Test("子集外的主题被注销后，选中态回退到白名单内的可用主题")
+    func unregisterSelectedOutsideSubsetFallsBackIntoSubset() {
+        let provider = Self.makeProvider()
+        LumiThemeRegistration.register(in: provider)
+        try? provider.selectTheme(id: "midnight")
+
+        // 注销选中主题后 Provider 回退到剩余第一个，且选中态必须可解析。
+        LumiThemeRegistration.unregister(from: provider, themeIDs: ["midnight"])
+
+        #expect(provider.selectedTheme != nil, "选中主题被注销后不应出现空选中态")
+        #expect(provider.selectedTheme?.id != "midnight")
+    }
 }
