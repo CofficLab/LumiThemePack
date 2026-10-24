@@ -189,14 +189,15 @@ public struct ThemeSettingsDetailView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
                 .frame(minHeight: 520, maxHeight: .infinity)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .strokeBorder(uiTheme.divider, lineWidth: 1)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
+        .padding(.bottom, 16)
     }
 
     private var headerStats: some View {
