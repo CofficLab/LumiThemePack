@@ -5,8 +5,11 @@ import SwiftUI
 private typealias AppThemeValue = ProviderTheme.LumiTheme
 private typealias AppThemeAppearanceKind = ProviderTheme.ThemeAppearanceKind
 
-/// 外观设置详情：使用新版 ProviderTheme，恢复旧版的搜索、筛选、双栏浏览、
+/// 外观设置详情：使用新版 ProviderTheme，提供外观筛选、双栏浏览、
 /// 主题预览与显式应用状态。
+///
+/// 不提供主题搜索：主题目录是固定枚举，条目数量有限，
+/// 搜索栏带来的收益不足以抵消它占用的首屏空间。
 @MainActor
 public struct ThemeSettingsDetailView: View {
     let theme: any ThemeProviding
@@ -15,7 +18,6 @@ public struct ThemeSettingsDetailView: View {
     @StateObject private var themeObservation: ThemeSettingsObservationModel
     @LumiUI.LumiTheme private var uiTheme: any LumiUI.LumiUITheme
     @State private var selectedID: String?
-    @State private var searchText = ""
     @State private var appearanceFilter: ThemeAppearanceFilter = .all
     @State private var isPreviewPresented = false
 
@@ -25,7 +27,7 @@ public struct ThemeSettingsDetailView: View {
     }
 
     private var filteredThemes: [AppThemeValue] {
-        ThemeFilter.filter(themes: theme.themes, searchText: searchText, filter: appearanceFilter)
+        ThemeFilter.filter(themes: theme.themes, filter: appearanceFilter)
     }
 
     private var selectedTheme: AppThemeValue? {
@@ -60,7 +62,7 @@ public struct ThemeSettingsDetailView: View {
     // MARK: - iOS
 
 #if os(iOS)
-    /// iOS 外观页：可搜索的主题列表，点击即应用并打勾。
+    /// iOS 外观页：主题列表，点击即应用并打勾。
     ///
     /// 桌面端的双栏「列表 + 预览面板」在 iPhone 上退化成卡片拼贴，
     /// 因此 iOS 改为「列表 + 对勾 + 预览弹层」的原生表达：
@@ -69,11 +71,6 @@ public struct ThemeSettingsDetailView: View {
     private var iosBody: some View {
         AppSettingsContentScaffold(maxContentWidth: nil) {
             VStack(alignment: .leading, spacing: 16) {
-                AppSearchBar(
-                    text: $searchText,
-                    placeholder: LocalizedStringKey(LumiThemePackLocalization.string("Search Themes"))
-                )
-
                 AppSettingSection(
                     title: String(
                         format: LumiThemePackLocalization.string("%lld Themes"),
@@ -92,7 +89,7 @@ public struct ThemeSettingsDetailView: View {
 
                     if filteredThemes.isEmpty {
                         AppEmptyState(
-                            icon: "magnifyingglass",
+                            icon: "paintpalette",
                             title: LumiThemePackLocalization.string("No Themes Found")
                         )
                         .padding(.vertical, 16)
@@ -168,7 +165,7 @@ public struct ThemeSettingsDetailView: View {
                     }
 
                     if filteredThemes.isEmpty {
-                        AppEmptyState(icon: "magnifyingglass", title: LumiThemePackLocalization.string("No Themes Found"))
+                        AppEmptyState(icon: "paintpalette", title: LumiThemePackLocalization.string("No Themes Found"))
                             .padding(.vertical, 32)
                     }
                 }
@@ -223,7 +220,7 @@ public struct ThemeSettingsDetailView: View {
                 LazyVStack(spacing: 4) {
                     ForEach(filteredThemes) { item in themeListRow(item) }
                     if filteredThemes.isEmpty {
-                        AppEmptyState(icon: "magnifyingglass", title: LumiThemePackLocalization.string("No Themes Found"))
+                        AppEmptyState(icon: "paintpalette", title: LumiThemePackLocalization.string("No Themes Found"))
                             .padding(.vertical, 32)
                     }
                 }
@@ -235,17 +232,14 @@ public struct ThemeSettingsDetailView: View {
     }
 
     private var themeFilterControls: some View {
-        VStack(spacing: 10) {
-            AppSearchBar(text: $searchText, placeholder: LocalizedStringKey(LumiThemePackLocalization.string("Search Themes")))
-            AppSegmentedControl(
-                ThemeAppearanceFilter.allCases.map(\.title),
-                selection: Binding(
-                    get: { ThemeAppearanceFilter.allCases.firstIndex(of: appearanceFilter) ?? 0 },
-                    set: { appearanceFilter = ThemeAppearanceFilter.allCases[$0] }
-                ),
-                maxWidth: .infinity
-            )
-        }
+        AppSegmentedControl(
+            ThemeAppearanceFilter.allCases.map(\.title),
+            selection: Binding(
+                get: { ThemeAppearanceFilter.allCases.firstIndex(of: appearanceFilter) ?? 0 },
+                set: { appearanceFilter = ThemeAppearanceFilter.allCases[$0] }
+            ),
+            maxWidth: .infinity
+        )
         .padding(.horizontal, 12)
         .padding(.vertical, 12)
     }
