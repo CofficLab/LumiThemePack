@@ -174,27 +174,34 @@ public struct ThemeSettingsDetailView: View {
         }
     }
 
+    /// 常规宽度（macOS 桌面）：左列表 + 右预览的贴边布局。
+    ///
+    /// - 主体内容贴到窗口左右与底边，没有外框描边，也没有底部留白；
+    /// - 头部行自行保留 24 的左右内边距，不贴到窗口边缘；
+    /// - 头部行与主体之间用一条分隔线分开。
     private var regularBody: some View {
         AppSettingsContentScaffold(scrollsContent: false, maxContentWidth: nil) {
-            VStack(alignment: .leading, spacing: 14) {
-                headerStats
-
-                HStack(spacing: 0) {
-                    themeListPane.frame(width: 300)
-                    AppDivider(.vertical)
-                    themeDetailPane
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            GeometryReader { proxy in
+                VStack(alignment: .leading, spacing: 0) {
+                    headerStats
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 12)
+                    AppDivider()
+                    HStack(spacing: 0) {
+                        themeListPane.frame(width: 300)
+                        AppDivider(.vertical)
+                        themeDetailPane
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    }
+                    .frame(maxHeight: .infinity)
                 }
-                .frame(minHeight: 520, maxHeight: .infinity)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .strokeBorder(uiTheme.divider, lineWidth: 1)
-                }
+                // 共享 scaffold 给内容留了左右 24，这里把整列加宽 48 并左移 24，
+                // 使主从容器正好贴到窗口左右边缘；标题行再自行补回 24 留白。
+                .frame(width: proxy.size.width + 48, alignment: .topLeading)
+                .offset(x: -24)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .padding(.bottom, 16)
     }
 
     private var headerStats: some View {
