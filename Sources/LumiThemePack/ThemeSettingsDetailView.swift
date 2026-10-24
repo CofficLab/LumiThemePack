@@ -141,6 +141,8 @@ public struct ThemeSettingsDetailView: View {
             VStack(alignment: .leading, spacing: 16) {
                 headerStats
                 themeFilterControls
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 12)
                 AppDivider()
 
                 LazyVStack(spacing: 4) {
@@ -179,6 +181,9 @@ public struct ThemeSettingsDetailView: View {
     /// - 主体内容贴到窗口左右与底边，没有外框描边，也没有底部留白；
     /// - 头部行自行保留 24 的左右内边距，不贴到窗口边缘；
     /// - 头部行与主体之间用一条分隔线分开。
+    ///
+    /// 外观筛选控件放在头部行右侧（而不是左侧列表栏顶部）：头部行因此和其它
+    /// 分栏页一样有控件撑着，分隔线落在同一水平线上。
     private var regularBody: some View {
         AppSettingsContentScaffold(scrollsContent: false, maxContentWidth: nil) {
             GeometryReader { proxy in
@@ -212,6 +217,7 @@ public struct ThemeSettingsDetailView: View {
                 Text(String(format: LumiThemePackLocalization.string("Current: %@"), active.displayName))
             }
             Spacer()
+            themeFilterControls
         }
         .font(.appCaption)
         .foregroundStyle(uiTheme.textSecondary)
@@ -219,10 +225,6 @@ public struct ThemeSettingsDetailView: View {
 
     private var themeListPane: some View {
         VStack(spacing: 0) {
-            themeFilterControls
-
-            AppDivider()
-
             ScrollView {
                 LazyVStack(spacing: 4) {
                     ForEach(filteredThemes) { item in themeListRow(item) }
@@ -238,6 +240,12 @@ public struct ThemeSettingsDetailView: View {
         .appSurface(style: .panel, cornerRadius: 0)
     }
 
+    /// 外观筛选：放在头部行右侧，宽度固定 220。
+    ///
+    /// `AppSegmentedControl` 自然高度约 25.3，比其它分栏页头部里的
+    /// `AppButton(size: .small)`（约 26.8）略矮。这里给一个 27 的下限让它
+    /// 与按钮齐平——高度足够时不会触发裁剪，只是把头部行撑到与其它页一致，
+    /// 顶部分隔线落在同一水平线上。
     private var themeFilterControls: some View {
         AppSegmentedControl(
             ThemeAppearanceFilter.allCases.map(\.title),
@@ -247,8 +255,7 @@ public struct ThemeSettingsDetailView: View {
             ),
             maxWidth: .infinity
         )
-        .padding(.horizontal, 12)
-        .padding(.vertical, 12)
+        .frame(width: 220, height: 27)
     }
 
     private func themeListRow(_ item: AppThemeValue) -> some View {
