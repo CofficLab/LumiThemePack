@@ -1,5 +1,7 @@
 # LumiThemePack
 
+📖 English | [中文版](README_zh.md)
+
 Shared theme catalog and theme settings interface for CofficLab applications.
 
 The package depends only on `LumiUI` and the `ProviderTheme` capability from `LumiProviders`. Host apps keep their own Kernel plugin metadata, lifecycle policy, and optional command or documentation contributions.
